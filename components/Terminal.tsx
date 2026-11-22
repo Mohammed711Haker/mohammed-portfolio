@@ -1,6 +1,6 @@
 "use client";
 import { ReactNode, useEffect, useRef, useState } from "react";
-import { EMAIL, GITHUB, Lang } from "@/lib/data";
+import { EMAIL, GITHUB, Lang, STATUS, t } from "@/lib/data";
 
 type Entry = { id: number; node: ReactNode };
 
@@ -10,15 +10,21 @@ type Props = {
   setTheme: (t: "dark" | "light") => void;
   setLang: (l: Lang) => void;
   hire: () => void;
+  openProject: (id: string) => void;
+  cv: () => void;
+  boot: () => void;
 };
+
+const PIDS = t.projects.items.map((p) => p.id);
 
 const CMDS = [
   "help", "about", "whoami", "skills", "projects", "education", "contact", "github",
   "neofetch", "ls", "cat readme.md", "theme dark", "theme light", "lang ar", "lang en",
   "open about", "open projects", "open gallery", "open contact", "ping yemen", "sudo hire-me", "date", "clear",
+  "timeline", "certs", "languages", "courses", "cv", "boot", ...PIDS.map((id) => `case ${id}`),
 ];
 
-export default function Terminal({ lang, go, setTheme, setLang, hire }: Props) {
+export default function Terminal({ lang, go, setTheme, setLang, hire, openProject, cv, boot }: Props) {
   const ar = lang === "ar";
   const [log, setLog] = useState<Entry[]>([]);
   const [val, setVal] = useState("");
@@ -33,7 +39,7 @@ export default function Terminal({ lang, go, setTheme, setLang, hire }: Props) {
   useEffect(() => {
     push(
       <>
-        <span className="c">Welcome to mohammed-os v1.0</span>
+        <span className="c">Welcome to mohammed-os v2.0</span>
         {"\n"}
         <span className="m">
           {ar ? "اكتب " : "Type "}
@@ -80,6 +86,13 @@ export default function Terminal({ lang, go, setTheme, setLang, hire }: Props) {
               ["skills", "tech stack"],
               ["projects", "what I build"],
               ["education", "university & experience"],
+              ["timeline", "full journey, newest first"],
+              ["case <project>", "open a case-study window"],
+              ["certs", "certificates & achievements"],
+              ["languages", "spoken languages"],
+              ["courses", "university courses"],
+              ["cv", "download my CV"],
+              ["boot", "replay the boot intro"],
               ["github", "my repos"],
               ["contact", "reach me"],
               ["open <section>", "scroll to a section"],
@@ -121,10 +134,10 @@ export default function Terminal({ lang, go, setTheme, setLang, hire }: Props) {
       case "projects":
         push(
           <>
-            <Row k="visioncheck" v="AI visual-acuity screening concept" />
-            <Row k="smart-park" v="ESP32 + ultrasonic parking dashboard" />
-            <Row k="cloud-lab" v="Debian + Nginx + PHP-FPM server" />
-            <span className="m">→ opening projects…</span>
+            {t.projects.items.map((p) => (
+              <Row key={p.id} k={p.id} v={<>{p.title.en} <span className="m">[{STATUS[p.status].label.en}]</span></>} />
+            ))}
+            <span className="m">→ opening projects… (try: case {PIDS[0]})</span>
           </>
         );
         setTimeout(() => go("projects"), 500);
@@ -133,10 +146,69 @@ export default function Terminal({ lang, go, setTheme, setLang, hire }: Props) {
       case "edu":
         push(
           <>
-            <Row k="2024–now" v="B.IT — Universitas Islam Negeri Salatiga" />
-            <Row k="ongoing" v="Founder — Abu Hilal Sky (travel & study-abroad)" />
+            <Row k="2024–2028" v="B.IT — Universitas Islam Negeri Salatiga (3rd year · sem. 4 GPA 3.70)" />
+            <Row k="jun 2025–now" v="Founder — Abu Hilal Sky (travel & study-abroad)" />
+            <Row k="2023" v="Executive manager — Al Shifa Medical Center, Marib" />
+            <Row k="feb–may 2023" v="Secretary — Al Dar Charity School, Marib" />
+            <Row k="2022" v="Professional Diploma in Business Administration (99%)" />
+            <span className="m">→ type timeline for everything</span>
           </>
         );
+        break;
+      case "timeline":
+      case "journey":
+        push(
+          <>
+            {t.resume.items.map((it, i) => (
+              <Row key={i} k={it.when.en.toLowerCase().slice(0, 11)} v={it.title.en} />
+            ))}
+          </>
+        );
+        setTimeout(() => go("resume"), 500);
+        break;
+      case "case":
+      case "show": {
+        const id = PIDS.find((p) => p === arg) || (arg ? PIDS.find((p) => p.startsWith(arg)) : undefined);
+        if (id) {
+          push(<span className="m">→ opening window ~/projects/{id}</span>);
+          setTimeout(() => openProject(id), 250);
+        } else push(<span className="e">usage: case &lt;{PIDS.join("|")}&gt;</span>);
+        break;
+      }
+      case "certs":
+      case "certificates":
+        push(
+          <>
+            {t.certs.items.map((c) => (
+              <Row key={c.id} k={c.id} v={<>{c.title.en}{c.score ? <span className="y"> {c.score}</span> : null} <span className="m">· {c.when.en}</span></>} />
+            ))}
+          </>
+        );
+        setTimeout(() => go("certs"), 500);
+        break;
+      case "languages":
+      case "langs":
+        push(
+          <>
+            {t.about.langs.map((l) => (
+              <Row key={l.n.en} k={l.n.en.toLowerCase()} v={<>{"█".repeat(l.lv)}<span className="m">{"░".repeat(5 - l.lv)} {l.tag.en}</span></>} />
+            ))}
+            <span className="m">self-assessed, out of 5</span>
+          </>
+        );
+        break;
+      case "courses":
+        push(<span className="c">{t.about.courses.map((c) => c.en).join(" · ")}</span>);
+        break;
+      case "cv":
+      case "resume":
+        push(<span className="m">→ fetching CV…</span>);
+        cv();
+        break;
+      case "boot":
+      case "reboot":
+        push(<span className="m">rebooting mohammed-os…</span>);
+        setTimeout(boot, 300);
         break;
       case "contact":
         push(
@@ -151,13 +223,15 @@ export default function Terminal({ lang, go, setTheme, setLang, hire }: Props) {
         setTimeout(() => go("github"), 400);
         break;
       case "ls":
-        push(<span className="c">about/  skills/  projects/  github/  gallery/  contact/  readme.md</span>);
+        if (arg === "projects" || arg === "projects/") push(<span className="c">{PIDS.join("/  ")}/</span>);
+        else push(<span className="c">about/  skills/  timeline/  projects/  github/  certs/  gallery/  contact/  readme.md  cv.pdf</span>);
         break;
       case "cat":
         push(
           arg === "readme.md" ? (
             <>
               # Mohammed&apos;s Portfolio{"\n"}Built with Next.js 16, React 19, TypeScript & lots of ☕{"\n"}
+              Projects open as draggable windows — try <span className="y">case fruitscan</span>.{"\n"}
               <span className="m">Try: Ctrl+K · click the background · tilt the cards.</span>
             </>
           ) : (
@@ -167,10 +241,13 @@ export default function Terminal({ lang, go, setTheme, setLang, hire }: Props) {
         break;
       case "open":
       case "cd": {
-        const ids = ["about", "skills", "resume", "projects", "github", "gallery", "contact", "terminal"];
-        const alias: Record<string, string> = { education: "resume", experience: "resume", journey: "resume", repos: "github" };
+        const ids = ["about", "skills", "resume", "projects", "github", "certs", "gallery", "contact", "terminal"];
+        const alias: Record<string, string> = { education: "resume", experience: "resume", journey: "resume", timeline: "resume", repos: "github", certificates: "certs" };
         const id = alias[arg] || arg;
-        if (ids.includes(id)) {
+        if (PIDS.includes(arg)) {
+          push(<span className="m">→ opening window ~/projects/{arg}</span>);
+          setTimeout(() => openProject(arg), 250);
+        } else if (ids.includes(id)) {
           push(<span className="m">→ {id}</span>);
           setTimeout(() => go(id), 300);
         } else push(<span className="e">open: unknown section “{arg}”. Try: {ids.join(", ")}</span>);
@@ -301,7 +378,7 @@ export default function Terminal({ lang, go, setTheme, setLang, hire }: Props) {
         </div>
       </div>
       <div className="term-chips">
-        {["help", "about", "skills", "projects", "neofetch", "sudo hire-me", "clear"].map((c) => (
+        {["help", "about", "skills", "projects", "timeline", "certs", "case fruitscan", "neofetch", "sudo hire-me", "clear"].map((c) => (
           <button key={c} onClick={() => run(c)}>
             {c}
           </button>

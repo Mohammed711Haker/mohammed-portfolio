@@ -3,12 +3,16 @@ import Image from "next/image";
 import { CSSProperties, MouseEvent, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Background from "./Background";
 import Terminal from "./Terminal";
-import { EMAIL, FALLBACK_REPOS, GITHUB, GITHUB_USER, LANG_COLORS, Lang, t } from "@/lib/data";
+import BootIntro from "./BootIntro";
+import SkillMap from "./SkillMap";
+import Windows, { Win, nextWindow } from "./Windows";
+import { COUNTRIES, EMAIL, FALLBACK_REPOS, GITHUB, GITHUB_USER, LANG_COLORS, Lang, SKILL_COUNT, STATUS, TlCat, t } from "@/lib/data";
+import { CV_PATH } from "@/lib/site";
 
 /* ------------------------------------------------------------------ */
 /* helpers                                                             */
 /* ------------------------------------------------------------------ */
-const SECTIONS = ["about", "skills", "resume", "projects", "github", "gallery", "contact"] as const;
+const SECTIONS = ["about", "skills", "resume", "projects", "github", "certs", "gallery", "contact"] as const;
 const PHOTOS = [
   { src: "/pic1.jpeg", w: 780, h: 1040 },
   { src: "/pic2.jpeg", w: 609, h: 1080 },
@@ -19,7 +23,6 @@ const PHOTOS = [
   { src: "/pic7.jpeg", w: 467, h: 1000 },
 ];
 
-const rnd = () => Math.floor(Math.random() * 4);
 const L = <T extends { en: unknown; ar: unknown }>(o: T, lang: Lang) => o[lang] as T["en"];
 
 function tilt(e: MouseEvent<HTMLElement>, max = 9) {
@@ -123,222 +126,6 @@ function SectionHead({ tag, title, sub }: { tag: string; title: string; sub?: st
 }
 
 /* ------------------------------------------------------------------ */
-/* project mini-demos                                                  */
-/* ------------------------------------------------------------------ */
-function ParkingSim({ lang }: { lang: Lang }) {
-  const ar = lang === "ar";
-  const [occ, setOcc] = useState<boolean[]>([true, false, true, false, false, true, false, false]);
-  const [cm, setCm] = useState<number[]>([14, 160, 11, 150, 175, 19, 142, 188]);
-  const [log, setLog] = useState<string[]>(["esp32: boot ok · wifi connected"]);
-  const [auto, setAuto] = useState(false);
-
-  const flip = useCallback((i: number) => {
-    setOcc((o) => {
-      const n = [...o];
-      n[i] = !n[i];
-      const d = n[i] ? 6 + Math.floor(Math.random() * 18) : 120 + Math.floor(Math.random() * 80);
-      setCm((c) => c.map((x, k) => (k === i ? d : x)));
-      setLog((l) => [...l.slice(-3), `slot[${i + 1}] ${d}cm → ${n[i] ? "OCCUPIED" : "FREE"}  POST /api/status 200`]);
-      return n;
-    });
-  }, []);
-
-  useEffect(() => {
-    if (!auto) return;
-    const id = setInterval(() => flip(Math.floor(Math.random() * 8)), 1100);
-    return () => clearInterval(id);
-  }, [auto, flip]);
-
-  const used = occ.filter(Boolean).length;
-  return (
-    <div className="sim">
-      <div className="sim-top">
-        <span>● ESP32 DASHBOARD</span>
-        <span>
-          {ar ? "فارغ" : "FREE"}: {8 - used}/8
-        </span>
-      </div>
-      <div className="lot">
-        {occ.map((o, i) => (
-          <button key={i} className={`slot ${o ? "occ" : ""}`} onClick={() => flip(i)} aria-label={`slot ${i + 1}`}>
-            {o ? <span className="car">🚗</span> : <span>P{i + 1}</span>}
-            <span className="cm">{cm[i]} cm</span>
-          </button>
-        ))}
-      </div>
-      <div className="sim-bar">
-        <i style={{ width: `${(used / 8) * 100}%`, backgroundSize: `${800 / Math.max(used / 8, 0.1)}% 100%` }} />
-      </div>
-      <div className="sim-log">
-        {log.map((l, i) => (
-          <div key={i + l}>$ {l}</div>
-        ))}
-      </div>
-      <div className="sim-actions">
-        <button className="mini" onClick={() => flip(Math.floor(Math.random() * 8))}>
-          {ar ? "حدث عشوائي" : "random event"}
-        </button>
-        <button className="mini" onClick={() => setAuto((a) => !a)}>
-          {auto ? (ar ? "إيقاف التلقائي" : "stop auto") : ar ? "وضع تلقائي" : "auto mode"}
-        </button>
-        <button
-          className="mini"
-          onClick={() => {
-            setOcc(Array(8).fill(false));
-            setCm(Array(8).fill(160));
-            setLog(["reset: all slots free"]);
-          }}
-        >
-          reset
-        </button>
-      </div>
-    </div>
-  );
-}
-
-const CLOUD_LINES: [string, string][] = [
-  ["c", "$ sudo apt update && sudo apt install -y nginx php-fpm"],
-  ["m", "Setting up nginx … Setting up php-fpm … done."],
-  ["c", "$ sudoedit /etc/nginx/sites-available/default"],
-  ["y", "  location ~ \\.php$ {"],
-  ["y", "      include snippets/fastcgi-php.conf;"],
-  ["y", "      fastcgi_pass unix:/run/php/php-fpm.sock;"],
-  ["y", "  }"],
-  ["c", "$ sudo nginx -t && sudo systemctl reload nginx"],
-  ["p", "nginx: configuration file test is successful"],
-  ["c", "$ curl -I http://localhost/info.php"],
-  ["p", "HTTP/1.1 200 OK"],
-];
-function CloudReplay({ lang }: { lang: Lang }) {
-  const [n, setN] = useState(CLOUD_LINES.length);
-  const [run, setRun] = useState(false);
-  useEffect(() => {
-    if (!run) return;
-    let i = 0;
-    const id = setInterval(() => {
-      i++;
-      setN(i);
-      if (i >= CLOUD_LINES.length) {
-        clearInterval(id);
-        setRun(false);
-      }
-    }, 520);
-    return () => clearInterval(id);
-  }, [run]);
-  return (
-    <div className="term" dir="ltr">
-      <div className="term-bar">
-        <i style={{ background: "#fb7185" }} />
-        <i style={{ background: "#fbbf24" }} />
-        <i style={{ background: "#34d399" }} />
-        <span style={{ marginInlineStart: 10 }}>debian@lab</span>
-      </div>
-      <div className="term-body" style={{ height: 250 }}>
-        {CLOUD_LINES.slice(0, n).map(([c, s], i) => (
-          <div key={i} className={c}>
-            {s}
-          </div>
-        ))}
-      </div>
-      <div className="term-chips">
-        <button
-          onClick={() => {
-            setN(0);
-            setRun(true);
-          }}
-          disabled={run}
-        >
-          ▶ {lang === "ar" ? "تشغيل" : "Run"}
-        </button>
-        <span className="m" style={{ fontFamily: "var(--mono)", fontSize: 11, color: "#94a3b8", alignSelf: "center" }}>
-          {lang === "ar" ? "إعادة توضيحية للخطوات" : "illustrative replay of the steps"}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-const SIZES = [92, 70, 54, 42, 32, 24, 18];
-function EyeTest({ lang }: { lang: Lang }) {
-  const ar = lang === "ar";
-  const [round, setRound] = useState(0);
-  const [dir, setDir] = useState(rnd);
-  const [score, setScore] = useState(0);
-  const [done, setDone] = useState(false);
-  const answer = (a: number) => {
-    const ok = a === dir;
-    const s = score + (ok ? 1 : 0);
-    setScore(s);
-    if (round + 1 >= SIZES.length || !ok) setDone(true);
-    else {
-      setRound(round + 1);
-      setDir(rnd());
-    }
-  };
-  const restart = () => {
-    setRound(0);
-    setScore(0);
-    setDone(false);
-    setDir(rnd());
-  };
-  const arrows = ["→", "↓", "←", "↑"];
-  return (
-    <div className="sim" style={{ textAlign: "center" }}>
-      <div className="sim-top">
-        <span>● VISIONCHECK · {ar ? "تجربة مفاهيمية" : "concept demo"}</span>
-        <span>
-          {Math.min(round + 1, SIZES.length)}/{SIZES.length}
-        </span>
-      </div>
-      {!done ? (
-        <>
-          <div style={{ height: 120, display: "grid", placeItems: "center" }}>
-            <div
-              style={{
-                fontSize: SIZES[round],
-                fontWeight: 900,
-                fontFamily: "Arial, sans-serif",
-                color: "#fff",
-                transform: `rotate(${dir * 90}deg)`,
-                transition: "font-size .3s",
-                lineHeight: 1,
-              }}
-              aria-label="E"
-            >
-              E
-            </div>
-          </div>
-          <p style={{ fontSize: 13, color: "#94a3b8", margin: "6px 0 12px" }}>
-            {ar ? "إلى أين تشير أرجل حرف E؟" : "Which way do the arms of the “E” point?"}
-          </p>
-          <div className="sim-actions" style={{ justifyContent: "center" }}>
-            {arrows.map((a, i) => (
-              <button key={a} className="mini" style={{ fontSize: 18, padding: "8px 18px" }} onClick={() => answer(i)}>
-                {a}
-              </button>
-            ))}
-          </div>
-        </>
-      ) : (
-        <div style={{ padding: "18px 0" }}>
-          <div style={{ fontSize: 34, fontWeight: 800 }}>
-            {score}/{SIZES.length}
-          </div>
-          <p style={{ color: "#94a3b8", fontSize: 13, margin: "8px 0 14px" }}>
-            {ar
-              ? "هذه تجربة ترفيهية لفكرة المشروع، وليست فحصاً طبياً. استشر أخصائي عيون عند الحاجة."
-              : "A playful demo of the idea — not a medical test. See an eye-care professional when in doubt."}
-          </p>
-          <button className="mini" onClick={restart}>
-            ↻ {ar ? "إعادة" : "try again"}
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
 /* main                                                                */
 /* ------------------------------------------------------------------ */
 type Repo = { name: string; language: string | null; description: string | null; html_url?: string; stargazers_count?: number; pushed_at?: string; fork?: boolean };
@@ -352,9 +139,13 @@ export default function Portfolio() {
   const [cat, setCat] = useState("web");
   const [skill, setSkill] = useState<{ c: string; n: string } | null>(null);
   const [tl, setTl] = useState(0);
+  const [tlFilter, setTlFilter] = useState<"all" | TlCat>("all");
+  const [skView, setSkView] = useState<"map" | "list">("map");
   const [pFilter, setPFilter] = useState("all");
-  const [modal, setModal] = useState<string | null>(null);
-  const [step, setStep] = useState(0);
+  const [wins, setWins] = useState<Win[]>([]);
+  const [flipped, setFlipped] = useState<string | null>(null);
+  const [cvOk, setCvOk] = useState(false);
+  const [bootN, setBootN] = useState(0);
   const [gFilter, setGFilter] = useState("all");
   const [lb, setLb] = useState<number | null>(null);
   const [pal, setPal] = useState(false);
@@ -369,17 +160,33 @@ export default function Portfolio() {
   const ar = lang === "ar";
 
   /* ---- persistence ---- */
-  /* eslint-disable react-hooks/set-state-in-effect -- reading browser-only storage after hydration */
+  // The inline script in app/layout.tsx already set <html lang/dir> before paint.
+  // We read that here so the first client render matches it (no LTR→RTL flash).
+  const [ready, setReady] = useState(false);
+  /* eslint-disable react-hooks/set-state-in-effect -- reading browser-only state after hydration */
   useEffect(() => {
+    const d = document.documentElement;
+    let l: Lang = d.lang === "ar" ? "ar" : "en";
     try {
-      const l = localStorage.getItem("lang") as Lang | null;
-      if (l === "ar" || l === "en") setLangState(l);
-      else if (navigator.language?.startsWith("ar")) setLangState("ar");
+      const s = localStorage.getItem("lang");
+      if (s === "ar" || s === "en") l = s;
     } catch {}
-    const attr = document.documentElement.getAttribute("data-theme");
+    setLangState(l);
+    const attr = d.getAttribute("data-theme");
     if (attr === "light" || attr === "dark") setThemeState(attr);
+    if (window.matchMedia("(max-width: 760px)").matches) setSkView("list");
+    setReady(true);
   }, []);
   /* eslint-enable react-hooks/set-state-in-effect */
+
+  /* ---- CV: enable the button only when the PDF exists ---- */
+  useEffect(() => {
+    const ctrl = new AbortController();
+    fetch(CV_PATH, { method: "HEAD", signal: ctrl.signal })
+      .then((r) => setCvOk(r.ok && (r.headers.get("content-type") || "").includes("pdf")))
+      .catch(() => {});
+    return () => ctrl.abort();
+  }, []);
   const setLang = useCallback((l: Lang) => {
     setLangState(l);
     try {
@@ -393,9 +200,12 @@ export default function Portfolio() {
     } catch {}
   }, []);
   useEffect(() => {
-    document.documentElement.lang = lang;
-    document.documentElement.dir = ar ? "rtl" : "ltr";
-  }, [lang, ar]);
+    if (!ready) return;
+    const d = document.documentElement;
+    d.lang = lang;
+    d.dir = ar ? "rtl" : "ltr";
+    d.removeAttribute("data-lpend");
+  }, [lang, ar, ready]);
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
   }, [theme]);
@@ -498,7 +308,15 @@ export default function Portfolio() {
         hint: "#" + s,
         run: () => go(s),
       })),
+      ...t.projects.items.map((p) => ({
+        k: "p-" + p.id,
+        label: (ar ? "افتح دراسة الحالة: " : "Open case study: ") + L(p.title, lang),
+        hint: L(STATUS[p.status].label, lang),
+        run: () => openProject(p.id),
+      })),
       { k: "terminal", label: ar ? "افتح التيرمنال" : "Open terminal", hint: "#terminal", run: () => go("terminal") },
+      { k: "cv", label: L(t.hero.cv, lang), hint: "PDF", run: () => downloadCv() },
+      { k: "boot", label: ar ? "أعد تشغيل مقدمة النظام" : "Replay boot intro", hint: "boot", run: () => setBootN((n) => n + 1) },
       { k: "theme", label: ar ? "تبديل المظهر" : "Toggle theme", hint: theme, run: () => setTheme(theme === "dark" ? "light" : "dark") },
       { k: "lang", label: ar ? "Switch to English" : "التبديل إلى العربية", hint: ar ? "EN" : "AR", run: () => setLang(ar ? "en" : "ar") },
       { k: "mail", label: ar ? "انسخ البريد" : "Copy email", hint: EMAIL, run: () => copyMail() },
@@ -509,6 +327,10 @@ export default function Portfolio() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q, lang, theme, ar, go]);
 
+  const escRef = useRef({ pal, lb: lb !== null, wins });
+  useEffect(() => {
+    escRef.current = { pal, lb: lb !== null, wins };
+  });
   useEffect(() => {
     const seq = ["ArrowUp", "ArrowUp", "ArrowDown", "ArrowDown", "ArrowLeft", "ArrowRight", "ArrowLeft", "ArrowRight", "b", "a"];
     let pos = 0;
@@ -523,9 +345,16 @@ export default function Portfolio() {
         return;
       }
       if (e.key === "Escape") {
-        setPal(false);
-        setModal(null);
-        setLb(null);
+        // close the top-most layer only: palette → lightbox → top window
+        if (escRef.current.pal) setPal(false);
+        else if (escRef.current.lb) setLb(null);
+        else {
+          const open = escRef.current.wins.filter((w) => !w.min);
+          if (open.length) {
+            const top = open.reduce((a, b) => (a.z > b.z ? a : b));
+            setWins((ws) => ws.filter((w) => w.id !== top.id));
+          }
+        }
         setMenu(false);
       }
       if (typing) return;
@@ -540,16 +369,38 @@ export default function Portfolio() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  // lock page scroll for overlays; windows are full-screen sheets on phones, so lock there too
+  const winOpen = wins.some((w) => !w.min);
   useEffect(() => {
-    document.body.style.overflow = modal || lb !== null || pal ? "hidden" : "";
-  }, [modal, lb, pal]);
+    const phone = window.matchMedia("(max-width: 760px)").matches;
+    document.body.style.overflow = lb !== null || pal || (winOpen && phone) ? "hidden" : "";
+  }, [lb, pal, winOpen]);
 
-  /* ---- project flow auto-advance ---- */
+  /* ---- magnetic buttons (pointer devices only, no reduced motion) ---- */
   useEffect(() => {
-    if (!modal) return;
-    const id = setInterval(() => setStep((s) => s + 1), 1800);
-    return () => clearInterval(id);
-  }, [modal]);
+    if (!window.matchMedia("(hover: hover) and (prefers-reduced-motion: no-preference)").matches) return;
+    let cur: HTMLElement | null = null;
+    const reset = () => {
+      if (cur) cur.style.transform = "";
+      cur = null;
+    };
+    const onMove = (e: PointerEvent) => {
+      const el = (e.target as HTMLElement)?.closest?.<HTMLElement>(".mag") ?? null;
+      if (el !== cur) reset();
+      if (!el) return;
+      cur = el;
+      const r = el.getBoundingClientRect();
+      const dx = (e.clientX - (r.left + r.width / 2)) / r.width;
+      const dy = (e.clientY - (r.top + r.height / 2)) / r.height;
+      el.style.transform = `translate(${dx * 10}px, ${dy * 8}px)`;
+    };
+    window.addEventListener("pointermove", onMove, { passive: true });
+    window.addEventListener("blur", reset);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("blur", reset);
+    };
+  }, []);
 
   /* ---- gallery list ---- */
   const gList = useMemo(
@@ -573,6 +424,19 @@ export default function Portfolio() {
   }, [lb, lbStep, ar]);
   const touchX = useRef(0);
 
+  /* ---- windows & CV ---- */
+  function openProject(id: string) {
+    setPal(false);
+    setWins((ws) => nextWindow(ws, id, document.documentElement.dir === "rtl"));
+  }
+  function downloadCv() {
+    if (!cvOk) return flash(L(t.hero.cvSoon, lang));
+    const a = document.createElement("a");
+    a.href = CV_PATH;
+    a.download = "Mohammed-Humaidhah-CV.pdf";
+    a.click();
+  }
+
   /* ---- contact ---- */
   function copyMail() {
     navigator.clipboard
@@ -593,8 +457,15 @@ export default function Portfolio() {
   /* ---- derived ---- */
   const skillCat = t.skills.cats.find((c) => c.id === cat)!;
   const selSkill = skill && skill.c === cat ? skillCat.items.find((i) => i.n === skill.n) : null;
-  const pj = t.projects.items.find((p) => p.id === modal);
-  const pItems = t.projects.items.filter((p) => pFilter === "all" || p.cat === pFilter);
+  const pItems = t.projects.items.filter((p) => pFilter === "all" || p.cats.includes(pFilter));
+  const tlItems = t.resume.items.filter((it) => tlFilter === "all" || it.cat === tlFilter);
+  const usedIn = selSkill && "p" in selSkill && selSkill.p ? t.projects.items.filter((p) => selSkill.p!.includes(p.id)) : [];
+  const stats = [
+    { v: t.stats.started.v, label: t.stats.started.label, plain: true },
+    { v: repos ? repos.length : t.stats.repos.v, label: t.stats.repos.label },
+    { v: SKILL_COUNT, label: t.stats.skills.label },
+    { v: COUNTRIES.length, label: t.stats.countries.label },
+  ];
   const openSkill = (c: string, n: string) => {
     setCat(c);
     setSkill({ c, n });
@@ -616,6 +487,7 @@ export default function Portfolio() {
 
   return (
     <div ref={root} style={{ position: "relative" }}>
+      <BootIntro lang={lang} replay={bootN} />
       <div className="progress" />
       <div className="cursor-glow" />
       <Background />
@@ -662,6 +534,11 @@ export default function Portfolio() {
       <main style={{ position: "relative", zIndex: 1 }}>
         {/* ---------------- hero ---------------- */}
         <section className="hero" id="top">
+          <div className="aurora" aria-hidden="true">
+            <i />
+            <i />
+            <i />
+          </div>
           <div className="wrap hero-grid" style={{ width: "100%" }}>
             <div>
               <span className="badge rv">
@@ -669,7 +546,8 @@ export default function Portfolio() {
                 {ar ? "متاح للتعاون والتدريب" : "open to collaborate & intern"}
               </span>
               <h1 className="h1 rv" style={{ "--d": "80ms" } as CSSProperties}>
-                {L(t.hero.hi, lang)} <span className="grad">{L(t.hero.name, lang)}</span>
+                {L(t.hero.hi, lang)} <span className="grad grad-anim">{L(t.hero.name, lang)}</span>
+                <span className="alias">{L(t.hero.alias, lang)}</span>
               </h1>
               <div className="rv" style={{ "--d": "160ms" } as CSSProperties}>
                 <Typer words={t.hero.roles[lang]} />
@@ -679,7 +557,7 @@ export default function Portfolio() {
               </p>
               <div className="cta rv" style={{ "--d": "320ms" } as CSSProperties}>
                 <button
-                  className="btn btn-p"
+                  className="btn btn-p mag"
                   onClick={(e) => {
                     ripple(e);
                     go("projects");
@@ -688,7 +566,7 @@ export default function Portfolio() {
                   {L(t.hero.cta1, lang)} →
                 </button>
                 <button
-                  className="btn btn-g"
+                  className="btn btn-g mag"
                   onClick={(e) => {
                     ripple(e);
                     go("contact");
@@ -705,15 +583,30 @@ export default function Portfolio() {
                 >
                   &gt;_ {L(t.hero.cta3, lang)}
                 </button>
+                <a
+                  className={`btn btn-g mag cv-btn ${cvOk ? "" : "soon"}`}
+                  href={CV_PATH}
+                  download="Mohammed-Humaidhah-CV.pdf"
+                  onClick={(e) => {
+                    ripple(e);
+                    if (!cvOk) {
+                      e.preventDefault();
+                      flash(L(t.hero.cvSoon, lang));
+                    }
+                  }}
+                  aria-disabled={!cvOk}
+                >
+                  ⤓ {L(t.hero.cv, lang)}
+                </a>
               </div>
               <div className="hint rv" style={{ "--d": "400ms" } as CSSProperties}>
                 {L(t.hero.hint, lang)}
               </div>
               <div className="stats rv" style={{ "--d": "480ms" } as CSSProperties}>
-                {t.stats.map((s, i) => (
+                {stats.map((s, i) => (
                   <div key={i} className="stat glass">
                     <span className="grad">
-                      <Counter to={i === 1 && repos ? repos.length : s.v} plain={s.plain} />
+                      <Counter to={s.v} plain={s.plain} />
                     </span>
                     <span>{L(s.label, lang)}</span>
                   </div>
@@ -775,6 +668,7 @@ export default function Portfolio() {
               </div>
               <div className="facts glass rv" style={{ "--d": "120ms" } as CSSProperties}>
                 {[
+                  [t.about.study, t.about.studyV],
                   [t.about.goal, t.about.goalV],
                   [t.about.focus, t.about.focusV],
                   [t.about.base, t.about.baseV],
@@ -787,14 +681,69 @@ export default function Portfolio() {
                 ))}
               </div>
             </div>
+            <div className="about-grid about-extra">
+              <div className="glass langs rv">
+                <div className="sec-tag">
+                  {L(t.about.langsTitle, lang)} <span className="m-note">· {L(t.about.langsNote, lang)}</span>
+                </div>
+                {t.about.langs.map((l, i) => (
+                  <div className="lang-row" key={l.n.en}>
+                    <div className="lang-top">
+                      <strong>{L(l.n, lang)}</strong>
+                      {L(l.tag, lang) && <small>{L(l.tag, lang)}</small>}
+                    </div>
+                    <div className="lang-bar" role="meter" aria-valuemin={0} aria-valuemax={5} aria-valuenow={l.lv} aria-label={L(l.n, lang)}>
+                      {Array.from({ length: 5 }).map((_, k) => (
+                        <i key={k} className={k < l.lv ? "on" : ""} style={{ "--d": `${i * 120 + k * 70}ms` } as CSSProperties} />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="glass courses rv" style={{ "--d": "120ms" } as CSSProperties}>
+                <div className="sec-tag">{L(t.about.coursesTitle, lang)}</div>
+                <div className="tags">
+                  {t.about.courses.map((c) => (
+                    <span className="tag course" key={c.en}>
+                      {L(c, lang)}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 
         {/* ---------------- skills ---------------- */}
         <section id="skills" className="section">
           <div className="wrap">
-            <SectionHead tag="// stack.json" title={L(t.skills.title, lang)} sub={L(t.skills.sub, lang)} />
-            <div className="tabs rv">
+            <SectionHead tag="// stack.json" title={L(t.skills.title, lang)} sub={L(skView === "map" ? t.skills.mapSub : t.skills.sub, lang)} />
+            <div className="seg view-toggle rv" role="tablist">
+              {(["map", "list"] as const).map((v) => (
+                <button key={v} role="tab" aria-selected={skView === v} className={skView === v ? "on" : ""} onClick={() => setSkView(v)}>
+                  {v === "map" ? "◉ " : "☰ "}
+                  {L(v === "map" ? t.skills.viewMap : t.skills.viewList, lang)}
+                </button>
+              ))}
+            </div>
+            {skView === "map" && (
+              <SkillMap
+                lang={lang}
+                cat={cat}
+                skill={skill && skill.c === cat ? skill.n : null}
+                onCat={(c) => {
+                  if (c !== cat) {
+                    setCat(c);
+                    setSkill(null);
+                  }
+                }}
+                onSkill={(c, n) => {
+                  setCat(c);
+                  setSkill({ c, n });
+                }}
+              />
+            )}
+            <div className="tabs rv" hidden={skView === "map"}>
               {t.skills.cats.map((c) => (
                 <button
                   key={c.id}
@@ -808,8 +757,8 @@ export default function Portfolio() {
                 </button>
               ))}
             </div>
-            <div className="skill-box rv">
-              <div className="skills-grid glass" key={cat}>
+            <div className={`skill-box rv ${skView === "map" ? "map-mode" : ""}`}>
+              <div className="skills-grid glass" key={cat} hidden={skView === "map"}>
                 {skillCat.items.map((s, i) => (
                   <button
                     key={s.n}
@@ -825,7 +774,17 @@ export default function Portfolio() {
               <div className="skill-info glass">
                 <div className="tipline">{selSkill ? `$ man ${selSkill.n.toLowerCase().replace(/[^a-z0-9]+/g, "-")}` : `// ${L(t.skills.tip, lang)}`}</div>
                 <div className="big grad">{selSkill ? selSkill.n : skillCat.icon}</div>
-                <p>{selSkill ? L(selSkill.d, lang) : L(t.skills.sub, lang)}</p>
+                <p>{selSkill ? L(selSkill.d, lang) : L(skView === "map" ? t.skills.mapSub : t.skills.sub, lang)}</p>
+                {usedIn.length > 0 && (
+                  <div className="used-in">
+                    <small>{L(t.skills.usedIn, lang)}:</small>
+                    {usedIn.map((p) => (
+                      <button key={p.id} className="mini" onClick={() => openProject(p.id)}>
+                        {p.icon} {L(p.title, lang)} ↗
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -834,14 +793,29 @@ export default function Portfolio() {
         {/* ---------------- journey ---------------- */}
         <section id="resume" className="section">
           <div className="wrap" style={{ maxWidth: 880 }}>
-            <SectionHead tag="// git log --journey" title={L(t.resume.title, lang)} />
-            <div className="timeline">
-              {t.resume.items.map((it, i) => (
+            <SectionHead tag="// git log --journey" title={L(t.resume.title, lang)} sub={L(t.resume.sub, lang)} />
+            <div className="tabs rv">
+              {t.resume.filters.map((f) => (
+                <button
+                  key={f.id}
+                  className={`tab ${tlFilter === f.id ? "on" : ""}`}
+                  onClick={() => {
+                    setTlFilter(f.id);
+                    setTl(0);
+                  }}
+                >
+                  {L(f.label, lang)}
+                  <span className="cnt">{f.id === "all" ? t.resume.items.length : t.resume.items.filter((x) => x.cat === f.id).length}</span>
+                </button>
+              ))}
+            </div>
+            <div className="timeline" key={tlFilter}>
+              {tlItems.map((it, i) => (
                 <div
-                  key={i}
+                  key={it.title.en}
                   role="button"
-                  className={`tl-item glass rv ${tl === i ? "open" : ""}`}
-                  style={{ "--d": `${i * 100}ms` } as CSSProperties}
+                  className={`tl-item glass rv tl-${it.cat} ${tl === i ? "open" : ""}`}
+                  style={{ "--d": `${Math.min(i, 6) * 70}ms` } as CSSProperties}
                   onClick={() => setTl(tl === i ? -1 : i)}
                   tabIndex={0}
                   onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), setTl(tl === i ? -1 : i))}
@@ -880,21 +854,24 @@ export default function Portfolio() {
                 </button>
               ))}
             </div>
-            <div className="p-grid">
+            <div className="p-grid" key={pFilter}>
               {pItems.map((p, i) => (
                 <button
                   key={p.id}
-                  className="pcard glass tilt rv"
+                  className={`pcard glass tilt rv st-${p.status}`}
                   style={{ "--d": `${i * 90}ms` } as CSSProperties}
                   onMouseMove={(e) => tilt(e, 7)}
                   onMouseLeave={untilt}
-                  onClick={() => {
-                    setStep(0);
-                    setModal(p.id);
-                  }}
+                  onClick={() => openProject(p.id)}
                 >
-                  <div className="pico">{p.icon}</div>
-                  <h3>{p.title}</h3>
+                  <div className="pcard-top">
+                    <div className="pico">{p.icon}</div>
+                    <span className={`status s-${STATUS[p.status].tone}`}>
+                      <i />
+                      {L(STATUS[p.status].label, lang)}
+                    </span>
+                  </div>
+                  <h3>{L(p.title, lang)}</h3>
                   <p>{L(p.short, lang)}</p>
                   <div className="tags" style={{ marginTop: 2 }}>
                     {p.tags.slice(0, 3).map((g) => (
@@ -975,6 +952,39 @@ export default function Portfolio() {
           </div>
         </section>
 
+        {/* ---------------- certificates ---------------- */}
+        <section id="certs" className="section">
+          <div className="wrap">
+            <SectionHead tag="// ~/certificates" title={L(t.certs.title, lang)} sub={L(t.certs.sub, lang)} />
+            <div className="cert-wall">
+              {t.certs.items.map((c, i) => (
+                <button
+                  key={c.id}
+                  className={`cert rv ${flipped === c.id ? "flip" : ""}`}
+                  style={{ "--d": `${i * 70}ms` } as CSSProperties}
+                  onClick={() => setFlipped(flipped === c.id ? null : c.id)}
+                  aria-pressed={flipped === c.id}
+                >
+                  <span className="cert-in">
+                    <span className="cert-f glass">
+                      <span className="cert-ic">{c.icon}</span>
+                      <small className="cert-kind">{L(c.kind, lang)}</small>
+                      <strong>{L(c.title, lang)}</strong>
+                      {c.score && <span className="cert-score grad">{c.score}</span>}
+                    </span>
+                    <span className="cert-b glass">
+                      <small className="cert-kind">{L(c.kind, lang)}</small>
+                      <strong>{L(c.org, lang)}</strong>
+                      <span className="mono cert-when">{L(c.when, lang)}</span>
+                      {c.score && <span className="cert-score grad">{c.score}</span>}
+                    </span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
+
         {/* ---------------- terminal ---------------- */}
         <section id="terminal" className="section">
           <div className="wrap" style={{ maxWidth: 860 }}>
@@ -993,6 +1003,9 @@ export default function Portfolio() {
                   go("contact");
                   flash(ar ? "تم! أرسل لي رسالة 😉" : "Granted! Send me a message 😉");
                 }}
+                openProject={openProject}
+                cv={downloadCv}
+                boot={() => setBootN((n) => n + 1)}
               />
             </div>
           </div>
@@ -1051,7 +1064,7 @@ export default function Portfolio() {
                 <div className="msg" style={{ color: formMsg?.ok ? "var(--ok)" : "var(--bad)" }} role="status">
                   {formMsg?.text}
                 </div>
-                <button className="btn btn-p" type="submit" onClick={ripple}>
+                <button className="btn btn-p mag" type="submit" onClick={ripple}>
                   {L(t.contact.send, lang)} ➤
                 </button>
               </form>
@@ -1070,6 +1083,13 @@ export default function Portfolio() {
                     <small>{L(t.gh.view, lang)} ↗</small>
                   </span>
                 </a>
+                <button className="link-row" onClick={downloadCv}>
+                  <span className="ic">📄</span>
+                  <span>
+                    <strong>{L(t.hero.cv, lang)}</strong>
+                    <small>{cvOk ? "PDF ⤓" : L(t.hero.cvSoon, lang)}</small>
+                  </span>
+                </button>
                 <button className="link-row" onClick={() => go("terminal")}>
                   <span className="ic mono">&gt;_</span>
                   <span>
@@ -1099,43 +1119,8 @@ export default function Portfolio() {
         ↑
       </button>
 
-      {/* ---------------- project modal ---------------- */}
-      {pj && (
-        <div className="overlay" onClick={() => setModal(null)} role="dialog" aria-modal="true" aria-label={pj.title}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <button className="ibtn x" onClick={() => setModal(null)} aria-label={L(t.projects.close, lang)}>
-              ✕
-            </button>
-            <div className="pico">{pj.icon}</div>
-            <h3>{pj.title}</h3>
-            <p className="long">{L(pj.long, lang)}</p>
-
-            <div className="mh">{L(t.projects.how, lang)}</div>
-            <div className="flow">
-              {pj.steps[lang].map((s, i) => (
-                <div key={s} className={`flow-step ${step % pj.steps[lang].length === i ? "on" : ""}`} onClick={() => setStep(i)}>
-                  <b>{String(i + 1).padStart(2, "0")}</b>
-                  {s}
-                </div>
-              ))}
-            </div>
-
-            <div className="mh">demo</div>
-            {pj.id === "parking" && <ParkingSim lang={lang} />}
-            {pj.id === "cloud" && <CloudReplay lang={lang} />}
-            {pj.id === "vision" && <EyeTest lang={lang} />}
-
-            <div className="mh">{L(t.projects.stack, lang)}</div>
-            <div className="tags" style={{ marginTop: 0 }}>
-              {pj.tags.map((g) => (
-                <span className="tag" key={g}>
-                  {g}
-                </span>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ---------------- project windows (case studies) ---------------- */}
+      <Windows wins={wins} setWins={setWins} lang={lang} />
 
       {/* ---------------- lightbox ---------------- */}
       {lb !== null && gList[lb] && (
