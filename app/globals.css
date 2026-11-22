@@ -1645,3 +1645,12 @@ footer.foot {
     transform: none;
   }
 }
+
+/* ================================================================== */
+/* redesign: first-paint language guard                               */
+/* ================================================================== */
+/* Arabic visitors: hide the server-rendered English text until React has
+   rendered Arabic (the inline script in layout.tsx sets data-lpend). */
+html[data-lpend] body > div > :not(.boot) {
+  visibility: hidden;
+}

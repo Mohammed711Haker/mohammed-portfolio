@@ -369,15 +369,21 @@ export default function Portfolio() {
   const ar = lang === "ar";
 
   /* ---- persistence ---- */
-  /* eslint-disable react-hooks/set-state-in-effect -- reading browser-only storage after hydration */
+  // The inline script in app/layout.tsx already set <html lang/dir> before paint.
+  // We read that here so the first client render matches it (no LTR→RTL flash).
+  const [ready, setReady] = useState(false);
+  /* eslint-disable react-hooks/set-state-in-effect -- reading browser-only state after hydration */
   useEffect(() => {
+    const d = document.documentElement;
+    let l: Lang = d.lang === "ar" ? "ar" : "en";
     try {
-      const l = localStorage.getItem("lang") as Lang | null;
-      if (l === "ar" || l === "en") setLangState(l);
-      else if (navigator.language?.startsWith("ar")) setLangState("ar");
+      const s = localStorage.getItem("lang");
+      if (s === "ar" || s === "en") l = s;
     } catch {}
-    const attr = document.documentElement.getAttribute("data-theme");
+    setLangState(l);
+    const attr = d.getAttribute("data-theme");
     if (attr === "light" || attr === "dark") setThemeState(attr);
+    setReady(true);
   }, []);
   /* eslint-enable react-hooks/set-state-in-effect */
   const setLang = useCallback((l: Lang) => {
@@ -393,9 +399,12 @@ export default function Portfolio() {
     } catch {}
   }, []);
   useEffect(() => {
-    document.documentElement.lang = lang;
-    document.documentElement.dir = ar ? "rtl" : "ltr";
-  }, [lang, ar]);
+    if (!ready) return;
+    const d = document.documentElement;
+    d.lang = lang;
+    d.dir = ar ? "rtl" : "ltr";
+    d.removeAttribute("data-lpend");
+  }, [lang, ar, ready]);
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
   }, [theme]);
