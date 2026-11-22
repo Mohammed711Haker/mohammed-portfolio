@@ -266,6 +266,8 @@ export type TlCat = "edu" | "work" | "venture" | "event" | "award" | "volunteer"
 export type TlItem = {
   /** sortable key YYYY-MM (00 = month unknown); empty = undated */
   key: string;
+  /** ongoing entries are pinned to the top in this order */
+  pin?: number;
   cat: TlCat;
   when: L;
   title: L;
@@ -279,6 +281,7 @@ const TIMELINE: TlItem[] = [
   // ---- existing entries (kept, dates added) ----
   {
     key: "2024-09",
+    pin: 1,
     cat: "edu",
     when: { en: "Sep 2024 – expected 2028", ar: "سبتمبر 2024 – متوقع 2028" },
     title: { en: "Bachelor of Information Technology", ar: "بكالوريوس تكنولوجيا المعلومات" },
@@ -292,6 +295,7 @@ const TIMELINE: TlItem[] = [
   },
   {
     key: "2025-06",
+    pin: 2,
     cat: "venture",
     when: { en: "Jun 2025 – Present", ar: "يونيو 2025 – الآن" },
     title: { en: "Founder & Manager — Abu Hilal Sky", ar: "المؤسس والمدير — Abu Hilal Sky" },
@@ -305,6 +309,7 @@ const TIMELINE: TlItem[] = [
   },
   {
     key: "",
+    pin: 3,
     cat: "event",
     when: { en: "Beyond class", ar: "خارج القاعة" },
     title: { en: "Global Engagement", ar: "المشاركة العالمية" },
@@ -721,7 +726,7 @@ export const t = {
       { id: "award", label: { en: "Achievements", ar: "إنجازات" } },
       { id: "volunteer", label: { en: "Volunteering", ar: "تطوّع" } },
     ] as { id: "all" | TlCat; label: L }[],
-    items: [...TIMELINE].sort((a, b) => (a.key === "" ? -1 : b.key === "" ? 1 : b.key.localeCompare(a.key))),
+    items: [...TIMELINE].sort((a, b) => (a.pin ?? 99) - (b.pin ?? 99) || b.key.localeCompare(a.key)),
   },
   projects: {
     title: { en: "Technical Projects & Research", ar: "المشاريع التقنية والبحثية" },
